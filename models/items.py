@@ -1,9 +1,10 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from models.models import db  # Import db from models.models
 
 class Item(db.Model):
+    __tablename__ = 'items table'
+        
     item_id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(255), nullable=False)
     inventory = db.Column(db.Integer, nullable=False)
