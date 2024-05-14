@@ -4,6 +4,8 @@ from routes.customer_routes import customer_bp
 from routes.otp_routes import otp_bp
 from routes.category_routes import category_bp
 from routes.items_routes import items_bp
+from routes.pricelogs_routes import price_logs_bp
+from routes.order_log_routes import order_logs_bp
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -25,6 +27,8 @@ app.register_blueprint(customer_bp)
 app.register_blueprint(otp_bp)
 app.register_blueprint(category_bp)
 app.register_blueprint(items_bp)
+app.register_blueprint(price_logs_bp)
+app.register_blueprint(order_logs_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)
