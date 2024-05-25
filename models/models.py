@@ -9,3 +9,5 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     otp = db.Column(db.String(6))  # Column to store OTP
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    bookmarked_items = db.Column(db.String)  # Column to store bookmarked item IDs as a comma-separated string
+

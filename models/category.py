@@ -1,11 +1,6 @@
-# category.py
-
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from models.models import db
-
-# Remove this line
-# db = SQLAlchemy()
 
 class Category(db.Model):
     __tablename__ = 'category'

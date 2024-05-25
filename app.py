@@ -6,9 +6,12 @@ from routes.category_routes import category_bp
 from routes.items_routes import items_bp
 from routes.pricelogs_routes import price_logs_bp
 from routes.order_log_routes import order_logs_bp
+from routes.localstorage import localstorage
+from routes.bookmark_routes import bookmark_bp
 from flask_cors import CORS
 
 app = Flask(__name__)
+app.secret_key = '1234567890'  # Set the secret key
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:123456@localhost:5432/BSE'
 app.config['CORS_HEADERS'] = 'Content-Type'  # Specify the CORS headers
 db.init_app(app)
@@ -29,6 +32,8 @@ app.register_blueprint(category_bp)
 app.register_blueprint(items_bp)
 app.register_blueprint(price_logs_bp)
 app.register_blueprint(order_logs_bp)
+app.register_blueprint(localstorage)
+app.register_blueprint(bookmark_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)
