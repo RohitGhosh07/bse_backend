@@ -5,9 +5,6 @@ from flask_cors import CORS
 items_bp = Blueprint('items_bp', __name__)
 CORS(items_bp)  # Enable CORS for all routes
 
-
-
-
 @items_bp.route("/items", methods=["GET"])
 def get_items():
     item_ids = request.args.get('item_id')
@@ -41,13 +38,15 @@ def get_items():
                 'base_price': item.base_price,
                 'subscription_id': item.subscription_id,
                 'active_slot': item.active_slot,
+                'brand_id': item.brand_id,  # Include brand_id
+                'brand_name': item.brand_name,  # Include brand_name
+                'image': item.image,  # Include image
                 'created_at': item.created_at
             } for item in items
         ]
         return jsonify({"items": item_list})
     else:
         return jsonify({"error": "No items found"}), 404
-
 
 @items_bp.route("/items", methods=["POST"])
 def add_items():
@@ -67,13 +66,17 @@ def add_items():
         base_price = item_data.get('base_price')
         subscription_id = item_data.get('subscription_id')
         active_slot = item_data.get('active_slot')
+        brand_id = item_data.get('brand_id')  # Get brand_id
+        brand_name = item_data.get('brand_name')  # Get brand_name
+        image = item_data.get('image')  # Get image
 
         if not item_name or not inventory or not item_category_id or not base_price or not active_slot:
             return jsonify({"error": "Incomplete data in one of the items."}), 400
 
         new_item = Item(item_name=item_name, inventory=inventory, item_category_id=item_category_id,
                         upper_circuit=upper_circuit, lower_circuit=lower_circuit, base_price=base_price,
-                        subscription_id=subscription_id, active_slot=active_slot)
+                        subscription_id=subscription_id, active_slot=active_slot, brand_id=brand_id, brand_name=brand_name,
+                        image=image)  # Include image
 
         try:
             db.session.add(new_item)
@@ -88,6 +91,9 @@ def add_items():
                 'base_price': new_item.base_price,
                 'subscription_id': new_item.subscription_id,
                 'active_slot': new_item.active_slot,
+                'brand_id': new_item.brand_id,  # Include brand_id
+                'brand_name': new_item.brand_name,  # Include brand_name
+                'image': new_item.image,  # Include image
                 'created_at': new_item.created_at
             })
         except Exception as e:
