@@ -11,6 +11,7 @@ from routes.order_log_routes import order_logs_bp
 from routes.localstorage import localstorage
 from routes.bookmark_routes import bookmark_bp
 from routes.brand_routes import brand_bp
+from routes.wallet_routes import wallets_bp
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -41,6 +42,7 @@ app.register_blueprint(order_logs_bp)
 app.register_blueprint(localstorage)
 app.register_blueprint(bookmark_bp)
 app.register_blueprint(brand_bp)
+app.register_blueprint(wallets_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)

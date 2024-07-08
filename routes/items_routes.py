@@ -10,6 +10,7 @@ def get_items():
     item_ids = request.args.get('item_id')
     item_category_id = request.args.get('item_category_id')
     search_query = request.args.get('search')
+    brand_id = request.args.get('brand_id')  # Get brand_id from query parameters
 
     if item_ids:
         # Convert comma-separated string of item IDs to a list
@@ -22,6 +23,9 @@ def get_items():
     elif search_query:
         # Fetching items that match the search query (case-insensitive)
         items = Item.query.filter(Item.item_name.ilike(f'%{search_query}%')).all()
+    elif brand_id:
+        # Fetching items by brand_id
+        items = Item.query.filter_by(brand_id=brand_id).all()
     else:
         # No filters provided, return all items
         items = Item.query.all()
@@ -47,6 +51,7 @@ def get_items():
         return jsonify({"items": item_list})
     else:
         return jsonify({"error": "No items found"}), 404
+
 
 @items_bp.route("/items", methods=["POST"])
 def add_items():
