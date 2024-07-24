@@ -2,3 +2,7 @@ flask
 python-dotenv
 flask_sqlalchemy
 flask_cors
+flask_migrate
+vonage
+psycopg2
+Flask-Requests

@@ -1,14 +1,31 @@
 from flask import Blueprint, jsonify, request
 from models.models import db, Customer
-import vonage
 import random
-from datetime import datetime
+import requests
+import urllib.parse
 
 customer_bp = Blueprint('customer_bp', __name__)
 
-# Initialize Vonage client
-client = vonage.Client(key="474478d6", secret="kAp2EA8BjHONaYly")
-sms = vonage.Sms(client)
+def send_sms_new(DLT_TE_ID, sms_mob_no, sms_message):
+    authkey = "360681AWirElvLuXvn609e3f14P1"
+    sender = "FRCPWR"
+    route = "4"
+    country = "91"
+    sms_message = sms_message
+    uri = (
+        "http://bulksms.smslive.in/api/sendhttp.php?"
+        "authkey={}&DLT_TE_ID={}&mobiles={}&message={}&sender={}&route={}&country={}"
+    ).format(
+        authkey,
+        DLT_TE_ID,
+        sms_mob_no,
+        urllib.parse.quote(sms_message),
+        sender,
+        route,
+        country,
+    )
+    response = requests.get(uri)
+    return response
 
 # Route to get all customers
 @customer_bp.route("/customers", methods=["GET"])
@@ -32,10 +49,8 @@ def add_customer():
     
     try:
         # Generate a random 6-digit OTP
-        # otp = ''.join(random.choices('0123456789', k=6))
-
-        # # Save OTP to the new customer object
-        otp = "123456"
+        otp = ''.join(random.choices('0123456789', k=6))
+        # Save OTP to the new customer object
         new_customer.otp = otp
 
         # Print the OTP value for debugging
@@ -48,21 +63,23 @@ def add_customer():
         db.session.commit()
 
         # Send OTP to the provided phone number
-        responseData = sms.send_message(
-            {
-                "from": "Vonage",
-                "to": f"91{phone}",
-                "text": f"Your OTP for login in BSE is: {otp}"
-            }
-        )
+        DLT_TE_ID = "1307162133541247932"  # Set your DLT_TE_ID here
+        sms_message = f"Your One Time Password for BSE is {otp}. Put this OTP and press submit. Team Force Power Infotech Pvt Ltd"
+        response = send_sms_new(DLT_TE_ID, phone, sms_message)
 
-        if responseData["messages"][0]["status"] == "0":
+        # Log the complete response for debugging
+        print("SMS API Response Status Code:", response)
+        print("SMS API Response Text:", response.text)
+
+        if response.status_code == 200 :
             print("Message sent successfully.")
+            return jsonify({"message": "OTP sent successfully", "id": new_customer.id}), 201
         else:
-            print(f"Message failed with error: {responseData['messages'][0]['error-text']}")
+            error_details = response.text
+            print("Message failed.")
+            return jsonify({"error": "Failed to send OTP", "details": error_details}), 500
 
-        # Return the ID of the newly added customer along with the success response
-        return jsonify({"message": "OTP sent successfully", "id": new_customer.id}), 201
     except Exception as e:
         db.session.rollback()
+        print(f"An error occurred: {e}")
         return jsonify({"error": "An error occurred while adding the customer"}), 500
