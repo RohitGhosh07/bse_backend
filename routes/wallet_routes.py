@@ -1,4 +1,6 @@
+from datetime import datetime
 from flask import Blueprint, jsonify, request
+from models.models import Customer
 from models.wallet import Wallet, db  # Import Wallet model and db
 from flask_cors import CORS
 
@@ -7,30 +9,37 @@ CORS(wallets_bp)  # Enable CORS for all routes
 
 @wallets_bp.route("/wallets", methods=["GET"])
 def get_wallets():
-    wallet_id = request.args.get('id')
     customer_id = request.args.get('customer_id')
+    session_id = request.args.get('session_id')
+    phone = request.args.get('phone')
 
-    if wallet_id:
-        wallets = Wallet.query.filter_by(id=wallet_id).all()
-    elif customer_id:
-        wallets = Wallet.query.filter_by(customer_id=customer_id).all()
-    else:
-        wallets = Wallet.query.all()
+    try:
+        if phone:
+            wallets = Wallet.query.filter_by(phone=phone).all()
+        elif session_id:
+            wallets = Wallet.query.filter_by(session_id=session_id).all()
+        elif customer_id:
+            wallets = Wallet.query.filter_by(customer_id=customer_id).all()
+        else:
+            wallets = Wallet.query.all()
 
-    if wallets:
-        wallet_list = [
-            {
-                'id': wallet.id,
-                'created_at': wallet.created_at,
-                'customer_id': wallet.customer_id,
-                'amount_loaded': wallet.amount_loaded,
-                'session_id': wallet.session_id,
-                'current_amount': wallet.current_amount
-            } for wallet in wallets
-        ]
-        return jsonify({"wallets": wallet_list})
-    else:
-        return jsonify({"error": "No wallets found"}), 404
+        if wallets:
+            wallet_list = [
+                {
+                    'id': wallet.id,
+                    'created_at': wallet.created_at,
+                    'customer_id': wallet.customer_id,
+                    'amount_loaded': wallet.amount_loaded,
+                    'session_id': wallet.session_id,
+                    'current_amount': wallet.current_amount
+                } for wallet in wallets
+            ]
+            return jsonify({"wallets": wallet_list})
+        else:
+            return jsonify({"error": "No wallets found"}), 404
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 
 @wallets_bp.route("/wallets", methods=["POST"])
 def add_wallets():
@@ -42,37 +51,53 @@ def add_wallets():
     response_data = []
 
     for wallet_data in data:
-        customer_id = wallet_data.get('customer_id')
+        phone_number = wallet_data.get('phone_number')
         amount_loaded = wallet_data.get('amount_loaded')
-        session_id = wallet_data.get('session_id')
-        current_amount = wallet_data.get('current_amount')
 
-        if not customer_id or not amount_loaded or not session_id or not current_amount:
+        if not phone_number or amount_loaded is None:
             return jsonify({"error": "Incomplete data in one of the wallets."}), 400
 
-        new_wallet = Wallet(
-            customer_id=customer_id,
-            amount_loaded=amount_loaded,
-            session_id=session_id,
-            current_amount=current_amount
-        )
+        # Fetch customer by phone number
+        customer = Customer.query.filter_by(phone=phone_number).order_by(Customer.id.desc()).first()
+        if not customer:
+            return jsonify({"error": f"No customer found with phone number {phone_number}"}), 404
+
+        customer_id = customer.id
+
+        # Create session_id using phone number and today's date
+        order_placed_datetime = datetime.utcnow()
+        formatted_date = order_placed_datetime.strftime("%Y%m%d")
+        session_id = phone_number + formatted_date
+
+        # Fetch the latest wallet for the customer
+        wallet = Wallet.query.filter_by(customer_id=customer_id).order_by(Wallet.id.desc()).first()
+
+        if wallet:
+            # Update existing wallet
+            wallet.current_amount += amount_loaded
+            wallet.session_id = session_id
+        else:
+            # Create a new wallet if it doesn't exist
+            wallet = Wallet(
+                customer_id=customer_id,
+                amount_loaded=amount_loaded,
+                session_id=session_id,
+                current_amount=amount_loaded
+            )
 
         try:
-            db.session.add(new_wallet)
+            db.session.add(wallet)
             db.session.commit()
             response_data.append({
-                'id': new_wallet.id,
-                'created_at': new_wallet.created_at,
-                'customer_id': new_wallet.customer_id,
-                'amount_loaded': new_wallet.amount_loaded,
-                'session_id': new_wallet.session_id,
-                'current_amount': new_wallet.current_amount
+                'customer_id': customer_id,
+                'current_amount': wallet.current_amount,
+                'session_id': session_id
             })
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": f"An error occurred while adding a wallet: {str(e)}"}), 500
 
-    return jsonify({"message": "Wallets added successfully", "wallets": response_data}), 201
+    return jsonify({"message": "Wallets updated successfully", "wallets": response_data}), 201
 
 # @wallets_bp.route("/wallets/<int:id>", methods=["PUT"])
 # def update_wallet(id):

@@ -1,3 +1,4 @@
+from datetime import datetime, time
 from flask import Blueprint, jsonify, request
 from models.models import db, Customer
 import random
@@ -27,14 +28,7 @@ def send_sms_new(DLT_TE_ID, sms_mob_no, sms_message):
     response = requests.get(uri)
     return response
 
-# Route to get all customers
-@customer_bp.route("/customers", methods=["GET"])
-def get_customers():
-    customers = Customer.query.all()
-    customer_list = [
-        {'id': customer.id, 'name': customer.name, 'phone': customer.phone, 'otp': customer.otp, 'created_at': customer.created_at} for customer in customers
-    ]
-    return jsonify({"customers": customer_list})
+
 
 # Route to add a new customer
 @customer_bp.route("/customers", methods=["POST"])
@@ -83,3 +77,36 @@ def add_customer():
         db.session.rollback()
         print(f"An error occurred: {e}")
         return jsonify({"error": "An error occurred while adding the customer"}), 500
+    
+# Route to get today's customers
+@customer_bp.route("/todaycustomers", methods=["GET"], endpoint="get_today_customers")
+def get_today_customers():
+    # Get today's date
+    today_start = datetime.combine(datetime.today(), time.min)
+    today_end = datetime.combine(datetime.today(), time.max)
+    
+    # Query customers created today
+    customers = Customer.query.filter(Customer.created_at >= today_start, Customer.created_at <= today_end).order_by(Customer.created_at.desc()).all()
+    
+    # Convert query results to list of dictionaries
+    customer_list = [
+        {
+            'id': customer.id,
+            'name': customer.name,
+            'phone': customer.phone,
+            'otp': customer.otp,
+            'created_at': customer.created_at.isoformat()  # Convert datetime to ISO format string
+        }
+        for customer in customers
+    ]
+    
+    return jsonify({"customers": customer_list})
+
+# Route to get all customers
+@customer_bp.route("/customers", methods=["GET"])
+def get_all_customers():
+    customers = Customer.query.order_by(Customer.created_at.desc()).all()
+    customer_list = [
+        {'id': customer.id, 'name': customer.name, 'phone': customer.phone, 'otp': customer.otp, 'created_at': customer.created_at.isoformat()} for customer in customers
+    ]
+    return jsonify({"customers": customer_list})
