@@ -4,6 +4,7 @@ from models.order_log_model import OrderLog, db
 from models.models import Customer
 from models.wallet import Wallet
 from models.items import Item
+from models.brand import Brand
 from datetime import datetime
 
 order_logs_bp = Blueprint('order_logs', __name__)
@@ -98,39 +99,121 @@ def get_order_logs():
     session_id = request.args.get('session_id')
 
     if order_id:
-        # If order_id is provided, fetch order logs for that specific order
+        # Fetch order logs for the specific order
         order_logs = OrderLog.query.filter_by(order_id=order_id).order_by(OrderLog.order_placed_datetime.desc()).all()
     elif session_id:
-        # If session_id is provided, fetch order logs for that specific session
+        # Fetch order logs for the specific session
         order_logs = OrderLog.query.filter_by(session_id=session_id).order_by(OrderLog.order_placed_datetime.desc()).all()
     else:
-        # If no order_id or session_id provided, fetch all order logs
+        # Fetch all order logs if no order_id or session_id is provided
         order_logs = OrderLog.query.order_by(OrderLog.order_placed_datetime.desc()).all()
 
+    # Create a dictionary to hold grouped order logs
     grouped_order_logs = defaultdict(lambda: {
         'id': None,
         'order_placed_datetime': None,
         'items': [],
         'order_id': None,
         'customer_id': None,
-        'session_id': None
+        'session_id': None,
+        'total_invoice': 0,
+        'total_items': 0,
+        'brands': defaultdict(lambda: {
+            'brand_id': None,
+            'brand_image': None,
+            'total_items': 0,
+            'total_invoice': 0,  # Added field for total invoice per brand
+        }),
     })
 
     for order_log in order_logs:
+        # Fetch item details to get price and brand_id
+        item = Item.query.get(order_log.item_id)
+        if not item:
+            continue
+
+        item_price = item.base_price
+        brand = Brand.query.get(item.brand_id)
+        
         key = (order_log.order_id, order_log.order_placed_datetime)
+
         if grouped_order_logs[key]['id'] is None:
             grouped_order_logs[key]['id'] = order_log.id
             grouped_order_logs[key]['order_placed_datetime'] = order_log.order_placed_datetime.strftime('%Y-%m-%d %H:%M:%S')
             grouped_order_logs[key]['order_id'] = order_log.order_id
             grouped_order_logs[key]['customer_id'] = order_log.customer_id
             grouped_order_logs[key]['session_id'] = order_log.session_id
-        
+            grouped_order_logs[key]['status'] = order_log.status
+
+        # Append item details to the items list
         grouped_order_logs[key]['items'].append({
             'item_id': order_log.item_id,
-            'quantity': order_log.quantity
+            'quantity': order_log.quantity,
+            'brand_id': brand.id if brand else None,
+            'brand_image': brand.image if brand else None
         })
 
+        # Calculate total invoice and total items per brand
+        grouped_order_logs[key]['total_invoice'] += order_log.quantity * item_price
+        grouped_order_logs[key]['total_items'] += order_log.quantity
+
+        # Update brand details
+        if brand:
+            brand_group = grouped_order_logs[key]['brands'][brand.id]
+            if brand_group['brand_id'] is None:
+                brand_group['brand_id'] = brand.id
+                brand_group['brand_image'] = brand.image
+            brand_group['total_items'] += order_log.quantity
+            brand_group['total_invoice'] += order_log.quantity * item_price  # Update brand's total invoice
+
+    # Convert the brands defaultdict to a list
+    for log in grouped_order_logs.values():
+        log['brands'] = list(log['brands'].values())
+
+    # Convert the grouped_order_logs defaultdict to a list
     serialized_order_logs = list(grouped_order_logs.values())
 
     return jsonify({'order_logs': serialized_order_logs}), 200
+
+@order_logs_bp.route('/order_logs/update_status', methods=['PUT'])
+def update_order_status():
+    data = request.json
+    order_id = data.get('order_id')
+    item_ids = data.get('item_id')  # Can be a single ID or a list of IDs
+
+    # Check if required fields are provided
+    if not order_id or not item_ids:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    # Convert item_ids to a list if it's not already one
+    if not isinstance(item_ids, list):
+        item_ids = [item_ids]
+
+    try:
+        # Track updated items
+        updated_items = []
+
+        for item_id in item_ids:
+            # Query the specific order log by order_id and item_id
+            order_log = OrderLog.query.filter_by(order_id=order_id, item_id=item_id).first()
+            if order_log is None:
+                return jsonify({'error': f'Order log not found for item_id {item_id}'}), 404
+            
+            # Update the status to 'Completed'
+            order_log.status = 'Completed'
+            updated_items.append(item_id)
+
+        # Commit the change to the database
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Order item status updated to Completed', 
+            'order_id': order_id, 
+            'updated_items': updated_items
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 

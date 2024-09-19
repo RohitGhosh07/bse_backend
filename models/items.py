@@ -13,7 +13,7 @@ class Item(db.Model):
     lower_circuit = db.Column(db.Float)
     base_price = db.Column(db.Float, nullable=False)
     subscription_id = db.Column(db.Integer)
-    active_slot = db.Column(db.Integer, nullable=False)
+    active_slot = db.Column(db.String(255), nullable=False, default='Active')
     brand_id = db.Column(db.Integer, nullable=True)  # New column
     brand_name = db.Column(db.String(255), nullable=True)  # New column
     image = db.Column(db.String(255), nullable=False) # New column

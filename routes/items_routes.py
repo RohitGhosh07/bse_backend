@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from models.items import Item, db
+from models.brand import Brand, db
 from flask_cors import CORS
 
 items_bp = Blueprint('items_bp', __name__)
@@ -44,6 +45,7 @@ def get_items():
                 'active_slot': item.active_slot,
                 'brand_id': item.brand_id,  # Include brand_id
                 'brand_name': item.brand_name,  # Include brand_name
+                'brand_img': Brand.query.get(item.brand_id).image,  # Include brand image
                 'image': item.image,  # Include image
                 'created_at': item.created_at
             } for item in items

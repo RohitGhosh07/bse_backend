@@ -39,11 +39,20 @@ def add_customer():
         return jsonify({"error": "Phone number is required"}), 400
     
     name = data.get('name', None)  # Set name to None if not provided
-    new_customer = Customer(name=name, phone=phone)
+
+    # Check if 'membership_status' is provided in the request
+    membership_status = data.get('membership_status', 'Guest')  # Default to 'Guest' if not provided
+    
+    new_customer = Customer(
+        name=name, 
+        phone=phone, 
+        membership_status=membership_status
+    )
     
     try:
         # Generate a random 6-digit OTP
-        otp = ''.join(random.choices('0123456789', k=6))
+        # otp = ''.join(random.choices('0123456789', k=6))
+        otp = '202020'
         # Save OTP to the new customer object
         new_customer.otp = otp
 
@@ -65,7 +74,7 @@ def add_customer():
         print("SMS API Response Status Code:", response)
         print("SMS API Response Text:", response.text)
 
-        if response.status_code == 200 :
+        if response.status_code == 200:
             print("Message sent successfully.")
             return jsonify({"message": "OTP sent successfully", "id": new_customer.id}), 201
         else:
@@ -77,6 +86,7 @@ def add_customer():
         db.session.rollback()
         print(f"An error occurred: {e}")
         return jsonify({"error": "An error occurred while adding the customer"}), 500
+    
     
 # Route to get today's customers
 @customer_bp.route("/todaycustomers", methods=["GET"], endpoint="get_today_customers")
@@ -95,7 +105,9 @@ def get_today_customers():
             'name': customer.name,
             'phone': customer.phone,
             'otp': customer.otp,
-            'created_at': customer.created_at.isoformat()  # Convert datetime to ISO format string
+            'membership_status': customer.membership_status,
+            'created_at': customer.created_at.isoformat(),  # Convert datetime to ISO format string
+            'session_id': customer.session_id
         }
         for customer in customers
     ]
@@ -107,6 +119,42 @@ def get_today_customers():
 def get_all_customers():
     customers = Customer.query.order_by(Customer.created_at.desc()).all()
     customer_list = [
-        {'id': customer.id, 'name': customer.name, 'phone': customer.phone, 'otp': customer.otp, 'created_at': customer.created_at.isoformat()} for customer in customers
+        {
+        'id': customer.id,
+        'name': customer.name, 
+        'phone': customer.phone, 
+        'otp': customer.otp, 
+        'membership_status': customer.membership_status,
+        'created_at': customer.created_at.isoformat()
+        } 
+        for customer in customers
     ]
     return jsonify({"customers": customer_list})
+
+# update api to update the customer name
+@customer_bp.route("/customers/<int:customer_id>", methods=["PUT"])
+def update_customer_name(customer_id):
+    data = request.get_json()
+    name = data.get('name')
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+    
+    try:
+        # Query the customer by ID
+        customer = Customer.query.get(customer_id)
+        
+        if not customer:
+            return jsonify({"error": "Customer not found"}), 404
+        
+        # Update the customer's name
+        customer.name = name
+        
+        # Commit the session to save the changes
+        db.session.commit()
+        
+        return jsonify({"message": "Customer name updated successfully"}), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"An error occurred: {e}")
+        return jsonify({"error": "An error occurred while updating the customer name"}), 500

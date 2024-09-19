@@ -10,5 +10,5 @@ class OrderLog(db.Model):
     order_id = db.Column(db.Integer, nullable=False)
     customer_id = db.Column(db.Integer, nullable=False)
     session_id = db.Column(db.String(20), nullable=False)
-    # status = db.Column(db.String(20), nullable=False)
-    # order_completed_datetime = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), nullable=False,default='Ongoing')
+    order_completed_datetime = db.Column(db.DateTime, nullable=True)
