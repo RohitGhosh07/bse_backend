@@ -52,7 +52,7 @@ def add_customer():
     try:
         # Generate a random 6-digit OTP
         # otp = ''.join(random.choices('0123456789', k=6))
-        otp = '202020'
+        otp = '000000'
         # Save OTP to the new customer object
         new_customer.otp = otp
 
